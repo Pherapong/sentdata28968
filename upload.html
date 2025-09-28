@@ -1,0 +1,582 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <base target="_top">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <style>
+        body { 
+            padding-top: 2rem; 
+            padding-bottom: 2rem; 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            font-family: 'Sarabun', sans-serif;
+        }
+        .container {
+            max-width: 800px;
+        }
+        .upload-card {
+            backdrop-filter: blur(10px);
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+        .upload-area {
+            border: 3px dashed #dee2e6;
+            border-radius: 15px;
+            padding: 3rem 2rem;
+            text-align: center;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+        }
+        .upload-area::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(45deg, transparent, rgba(13,110,253,0.05), transparent);
+            transform: translateX(-100%);
+            transition: transform 0.6s;
+        }
+        .upload-area:hover {
+            border-color: #0d6efd;
+            background-color: #f8f9ff;
+            transform: translateY(-2px);
+        }
+        .upload-area:hover::before {
+            transform: translateX(100%);
+        }
+        .upload-area.dragover {
+            border-color: #0d6efd;
+            background: linear-gradient(135deg, #e7f1ff, #f0f8ff);
+            transform: scale(1.02);
+        }
+        .upload-icon {
+            font-size: 4rem;
+            color: #6c757d;
+            margin-bottom: 1rem;
+            transition: all 0.3s ease;
+        }
+        .upload-area:hover .upload-icon {
+            color: #0d6efd;
+            transform: scale(1.1);
+        }
+        .file-info {
+            background: linear-gradient(135deg, #e7f3ff, #f0f8ff);
+            border-left: 5px solid #0d6efd;
+            padding: 1.5rem;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(13,110,253,0.1);
+        }
+        .file-preview {
+            width: 60px;
+            height: 60px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2rem;
+            margin-right: 1rem;
+        }
+        .file-pdf { background: #ff4444; color: white; }
+        .file-doc { background: #2b579a; color: white; }
+        .file-image { background: #28a745; color: white; }
+        .loading-overlay {
+            position: fixed; 
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.7);
+            display: flex; 
+            justify-content: center; 
+            align-items: center;
+            z-index: 1060; 
+            display: none;
+        }
+        .loading-content {
+            background: white;
+            padding: 2rem;
+            border-radius: 15px;
+            text-align: center;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+        }
+        .progress-ring {
+            width: 120px;
+            height: 120px;
+            margin: 0 auto 1rem;
+        }
+        .progress-ring-circle {
+            stroke: #e9ecef;
+            stroke-width: 8;
+            fill: transparent;
+            r: 52;
+            cx: 60;
+            cy: 60;
+        }
+        .progress-ring-progress {
+            stroke: #0d6efd;
+            stroke-width: 8;
+            stroke-linecap: round;
+            fill: transparent;
+            r: 52;
+            cx: 60;
+            cy: 60;
+            stroke-dasharray: 327;
+            stroke-dashoffset: 327;
+            transition: stroke-dashoffset 0.3s;
+        }
+        .btn-gradient {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            border: none;
+            box-shadow: 0 4px 15px rgba(102,126,234,0.4);
+            transition: all 0.3s ease;
+        }
+        .btn-gradient:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102,126,234,0.6);
+        }
+        .doc-number-badge {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            padding: 0.5rem 1.5rem;
+            border-radius: 25px;
+            font-weight: 600;
+            font-size: 1.1rem;
+            display: inline-block;
+            margin-bottom: 1rem;
+        }
+        .instruction-card {
+            background: rgba(255,255,255,0.9);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+        }
+        .animate-bounce {
+            animation: bounce 2s infinite;
+        }
+        @keyframes bounce {
+            0%, 20%, 50%, 80%, 100% { transform: translateY(0); }
+            40% { transform: translateY(-10px); }
+            60% { transform: translateY(-5px); }
+        }
+        @media (max-width: 768px) {
+            .upload-area {
+                padding: 2rem 1rem;
+            }
+            .upload-icon {
+                font-size: 3rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="text-center mb-4">
+            <h1 class="text-white mb-3">
+                <i class="bi bi-cloud-upload me-2"></i>
+                อัปโหลดไฟล์เอกสาร
+            </h1>
+            <div class="doc-number-badge">
+                <i class="bi bi-file-text me-2"></i>
+                เลขหนังสือ: <?= docNumber ?>
+            </div>
+            <a href="<?= webAppUrl ?>" class="btn btn-outline-light btn-sm">
+                <i class="bi bi-arrow-left me-1"></i> กลับสู่หน้าหลัก
+            </a>
+        </div>
+
+        <!-- Upload Form Card -->
+        <div class="upload-card card border-0 mb-4">
+            <div class="card-header bg-transparent border-0 text-center py-4">
+                <h4 class="text-primary mb-0">
+                    <i class="bi bi-upload me-2"></i>
+                    อัปโหลดไฟล์เอกสาร
+                </h4>
+            </div>
+            <div class="card-body p-4">
+                <form id="uploadForm" enctype="multipart/form-data">
+                    <input type="hidden" id="docNumber" value="<?= docNumber ?>">
+                    
+                    <!-- Upload Area -->
+                    <div class="upload-area mb-4" id="uploadArea">
+                        <div id="uploadContent">
+                            <div class="upload-icon animate-bounce">
+                                <i class="bi bi-cloud-upload"></i>
+                            </div>
+                            <h4 class="fw-bold text-primary mb-3">เลือกไฟล์หรือลากไฟล์มาที่นี่</h4>
+                            <p class="text-muted mb-4">
+                                รองรับไฟล์ PDF, DOC, DOCX, JPG, PNG<br>
+                                <small>ขนาดไม่เกิน 10MB</small>
+                            </p>
+                            <input type="file" id="fileInput" class="d-none" 
+                                   accept=".pdf,.doc,.docx,.jpg,.jpeg,.png">
+                            <button type="button" class="btn btn-gradient btn-lg px-4" 
+                                    onclick="document.getElementById('fileInput').click()">
+                                <i class="bi bi-folder2-open me-2"></i>
+                                เลือกไฟล์จากเครื่อง
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- File Info Display -->
+                    <div id="fileInfo" class="file-info d-none mb-4">
+                        <div class="d-flex align-items-center">
+                            <div id="filePreview" class="file-preview"></div>
+                            <div class="flex-grow-1">
+                                <h5 class="mb-1 text-primary" id="fileName"></h5>
+                                <p class="text-muted mb-0">
+                                    <i class="bi bi-hdd me-1"></i>
+                                    <span id="fileSize"></span>
+                                </p>
+                            </div>
+                            <button type="button" class="btn btn-outline-danger btn-sm" onclick="clearFile()">
+                                <i class="bi bi-trash me-1"></i> ลบไฟล์
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Submit Button -->
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-success btn-lg py-3" id="submitBtn" disabled>
+                            <i class="bi bi-cloud-upload me-2"></i>
+                            <span id="submitText">อัปโหลดไฟล์เลยครับ</span>
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Instructions Card -->
+        <div class="instruction-card card border-0">
+            <div class="card-header bg-transparent border-0">
+                <h6 class="text-primary mb-0">
+                    <i class="bi bi-info-circle me-2"></i>
+                    คำแนะนำการใช้งาน
+                </h6>
+            </div>
+            <div class="card-body pt-2">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <div class="d-flex align-items-start">
+                            <div class="bg-primary text-white rounded-circle me-3 d-flex align-items-center justify-content-center" 
+                                 style="width: 30px; height: 30px; font-size: 0.8rem;">1</div>
+                            <div>
+                                <strong>ไฟล์ที่รองรับ</strong><br>
+                                <small class="text-muted">PDF, DOC, DOCX, JPG, PNG</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="d-flex align-items-start">
+                            <div class="bg-primary text-white rounded-circle me-3 d-flex align-items-center justify-content-center" 
+                                 style="width: 30px; height: 30px; font-size: 0.8rem;">2</div>
+                            <div>
+                                <strong>ขนาดไฟล์</strong><br>
+                                <small class="text-muted">ไม่เกิน 10 MB</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="d-flex align-items-start">
+                            <div class="bg-primary text-white rounded-circle me-3 d-flex align-items-center justify-content-center" 
+                                 style="width: 30px; height: 30px; font-size: 0.8rem;">3</div>
+                            <div>
+                                <strong>วิธีอัปโหลด</strong><br>
+                                <small class="text-muted">ลากไฟล์มาวาง หรือกดเลือกไฟล์</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="d-flex align-items-start">
+                            <div class="bg-primary text-white rounded-circle me-3 d-flex align-items-center justify-content-center" 
+                                 style="width: 30px; height: 30px; font-size: 0.8rem;">4</div>
+                            <div>
+                                <strong>หลังอัปโหลด</strong><br>
+                                <small class="text-muted">ระบบจะสร้างลิงค์ดาวน์โหลดอัตโนมัติ</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="loading-content">
+            <svg class="progress-ring" viewBox="0 0 120 120">
+                <circle class="progress-ring-circle"></circle>
+                <circle class="progress-ring-progress" id="progressCircle"></circle>
+            </svg>
+            <h5 class="text-primary mb-2">กำลังอัปโหลด...</h5>
+            <p class="text-muted mb-0">กรุณารอสักครู่</p>
+            <div class="mt-3">
+                <span id="uploadPercent" class="fw-bold text-primary">0%</span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const webAppUrl = "<?= webAppUrl ?>";
+        const docNumber = document.getElementById('docNumber').value;
+        const fileInput = document.getElementById('fileInput');
+        const uploadArea = document.getElementById('uploadArea');
+        const fileInfo = document.getElementById('fileInfo');
+        const fileName = document.getElementById('fileName');
+        const fileSize = document.getElementById('fileSize');
+        const filePreview = document.getElementById('filePreview');
+        const submitBtn = document.getElementById('submitBtn');
+        const submitText = document.getElementById('submitText');
+        const loadingOverlay = document.getElementById('loadingOverlay');
+        const progressCircle = document.getElementById('progressCircle');
+        const uploadPercent = document.getElementById('uploadPercent');
+        
+        let selectedFile = null;
+
+        // Event Listeners
+        fileInput.addEventListener('change', handleFileSelect);
+        document.getElementById('uploadForm').addEventListener('submit', handleUpload);
+        
+        // Drag & Drop Events
+        uploadArea.addEventListener('click', () => {
+            if (!selectedFile) fileInput.click();
+        });
+        uploadArea.addEventListener('dragover', handleDragOver);
+        uploadArea.addEventListener('dragleave', handleDragLeave);
+        uploadArea.addEventListener('drop', handleDrop);
+
+        function handleDragOver(e) {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        }
+
+        function handleDragLeave(e) {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+        }
+
+        function handleDrop(e) {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                handleFile(files[0]);
+            }
+        }
+
+        function handleFileSelect(e) {
+            if (e.target.files.length > 0) {
+                handleFile(e.target.files[0]);
+            }
+        }
+
+        function handleFile(file) {
+            // ตรวจสอบขนาดไฟล์ (10MB = 10 * 1024 * 1024 bytes)
+            if (file.size > 10 * 1024 * 1024) {
+                showAlert('error', 'ขนาดไฟล์ใหญ่เกินไป! กรุณาเลือกไฟล์ที่มีขนาดไม่เกิน 10MB');
+                return;
+            }
+
+            // ตรวจสอบประเภทไฟล์
+            const allowedTypes = [
+                'application/pdf',
+                'application/msword',
+                'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                'image/jpeg',
+                'image/jpg',
+                'image/png'
+            ];
+
+            if (!allowedTypes.includes(file.type)) {
+                showAlert('error', 'ประเภทไฟล์ไม่รองรับ! กรุณาเลือกไฟล์ PDF, DOC, DOCX, JPG หรือ PNG');
+                return;
+            }
+
+            selectedFile = file;
+            displayFileInfo(file);
+        }
+
+        function displayFileInfo(file) {
+            fileName.textContent = file.name;
+            fileSize.textContent = formatFileSize(file.size);
+            
+            // แสดง preview icon ตามประเภทไฟล์
+            filePreview.innerHTML = '';
+            filePreview.className = 'file-preview';
+            
+            if (file.type === 'application/pdf') {
+                filePreview.classList.add('file-pdf');
+                filePreview.innerHTML = '<i class="bi bi-file-pdf"></i>';
+            } else if (file.type.includes('word') || file.type.includes('document')) {
+                filePreview.classList.add('file-doc');
+                filePreview.innerHTML = '<i class="bi bi-file-word"></i>';
+            } else if (file.type.startsWith('image/')) {
+                filePreview.classList.add('file-image');
+                filePreview.innerHTML = '<i class="bi bi-file-image"></i>';
+                
+                // แสดง preview รูปภาพ
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    filePreview.innerHTML = `<img src="${e.target.result}" style="width: 100%; height: 100%; object-fit: cover; border-radius: 8px;">`;
+                };
+                reader.readAsDataURL(file);
+            }
+            
+            fileInfo.classList.remove('d-none');
+            submitBtn.disabled = false;
+            submitText.textContent = `อัปโหลด ${file.name}`;
+            
+            // ซ่อนพื้นที่อัปโหลด
+            document.getElementById('uploadContent').style.display = 'none';
+        }
+
+        function clearFile() {
+            selectedFile = null;
+            fileInput.value = '';
+            fileInfo.classList.add('d-none');
+            submitBtn.disabled = true;
+            submitText.textContent = 'อัปโหลดไฟล์เลยครับ';
+            document.getElementById('uploadContent').style.display = 'block';
+        }
+
+        function handleUpload(e) {
+            e.preventDefault();
+            
+            if (!selectedFile) {
+                showAlert('error', 'กรุณาเลือกไฟล์ที่ต้องการอัปโหลด');
+                return;
+            }
+
+            // แสดง loading overlay
+            loadingOverlay.style.display = 'flex';
+            submitBtn.disabled = true;
+            
+            // จำลองความคืบหน้า
+            animateProgress();
+
+            // แปลงไฟล์เป็น base64
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const base64Data = e.target.result.split(',')[1];
+                
+                const uploadData = {
+                    docNumber: docNumber,
+                    fileName: selectedFile.name,
+                    fileData: base64Data,
+                    mimeType: selectedFile.type
+                };
+
+                google.script.run
+                    .withSuccessHandler(onUploadSuccess)
+                    .withFailureHandler(onUploadError)
+                    .uploadFile(uploadData);
+            };
+            
+            reader.readAsDataURL(selectedFile);
+        }
+
+        function animateProgress() {
+            let progress = 0;
+            const interval = setInterval(() => {
+                progress += Math.random() * 10;
+                if (progress >= 90) {
+                    progress = 90;
+                    clearInterval(interval);
+                }
+                updateProgress(progress);
+            }, 200);
+        }
+
+        function updateProgress(percent) {
+            const circumference = 2 * Math.PI * 52;
+            const offset = circumference - (percent / 100 * circumference);
+            progressCircle.style.strokeDashoffset = offset;
+            uploadPercent.textContent = Math.round(percent) + '%';
+        }
+
+        function onUploadSuccess(result) {
+            updateProgress(100);
+            
+            setTimeout(() => {
+                loadingOverlay.style.display = 'none';
+                submitBtn.disabled = false;
+
+                if (result.success) {
+                    showAlert('success', `
+                        <strong>🎉 อัปโหลดไฟล์สำเร็จ!</strong><br>
+                        ระบบได้บันทึกไฟล์ <strong>${selectedFile.name}</strong> เรียบร้อยแล้ว
+                    `);
+                    
+                    // รีเซ็ตฟอร์ม
+                    clearFile();
+                    
+                    // กลับไปหน้าหลักหลังจาก 3 วินาที
+                    setTimeout(() => {
+                        window.location.href = webAppUrl;
+                    }, 3000);
+                } else {
+                    showAlert('error', '❌ เกิดข้อผิดพลาด: ' + result.message);
+                }
+            }, 500);
+        }
+
+        function onUploadError(error) {
+            updateProgress(0);
+            loadingOverlay.style.display = 'none';
+            submitBtn.disabled = false;
+            console.error('Upload error:', error);
+            showAlert('error', '❌ เกิดข้อผิดพลาดในการอัปโหลด: ' + error.message);
+        }
+
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+
+        function showAlert(type, message) {
+            const alertType = type === 'success' ? 'alert-success' : 'alert-danger';
+            const iconClass = type === 'success' ? 'bi-check-circle-fill' : 'bi-exclamation-triangle-fill';
+            
+            const alertHtml = `
+                <div class="alert ${alertType} alert-dismissible fade show position-fixed" 
+                     style="top: 20px; right: 20px; z-index: 9999; min-width: 400px; max-width: 500px;" role="alert">
+                    <i class="bi ${iconClass} me-2"></i>
+                    <div>${message}</div>
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            `;
+            
+            document.body.insertAdjacentHTML('beforeend', alertHtml);
+            
+            // ลบ alert หลังจาก 8 วินาที
+            setTimeout(() => {
+                const alerts = document.querySelectorAll('.alert');
+                alerts.forEach(alert => {
+                    if (alert.classList.contains('show')) {
+                        alert.classList.remove('show');
+                        setTimeout(() => alert.remove(), 150);
+                    }
+                });
+            }, 8000);
+        }
+
+        // เช็คว่ามี docNumber หรือไม่
+        if (!docNumber) {
+            showAlert('error', '❌ ไม่พบเลขหนังสือ กรุณากลับไปหน้าหลักและลองใหม่');
+            setTimeout(() => {
+                window.location.href = webAppUrl;
+            }, 3000);
+        }
+    </script>
+</body>
+</html>

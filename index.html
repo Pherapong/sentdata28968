@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <base target="_top">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <style>
+        body { 
+            padding-top: 1rem; 
+            padding-bottom: 1rem; 
+            background-color: #f8f9fa; 
+            font-family: 'Sarabun', sans-serif;
+        }
+        .header { 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            margin-bottom: 1.5rem; 
+        }
+        .status-badge { font-size: 0.8em; }
+        .table { vertical-align: middle; }
+        .loading-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(255, 255, 255, 0.7);
+            display: flex; justify-content: center; align-items: center;
+            z-index: 1060; display: none;
+        }
+        .form-label { font-weight: 500; }
+        .required { color: #dc3545; }
+        @media (max-width: 768px) {
+            .header { flex-direction: column; gap: 1rem; }
+            .header h1 { font-size: 1.5rem; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container-fluid px-4">
+        <div class="header">
+            <h1 class="text-primary mb-0">ระบบออกเลขหนังสือ</h1>
+            <button type="button" class="btn btn-primary btn-lg" data-bs-toggle="modal" data-bs-target="#newDocModal">
+                <i class="bi bi-plus-circle"></i> ออกเลขหนังสือใหม่
+            </button>
+        </div>
+
+        <div class="card shadow-sm">
+            <div class="card-header">
+                <h5 class="card-title mb-0">รายการเอกสารทั้งหมด</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover" id="docTable">
+                        <thead class="table-light">
+                            <tr>
+                                <th width="10%">เลขหนังสือ</th>
+                                <th width="12%">วันที่สร้าง</th>
+                                <th width="10%">ลงวันที่</th>
+                                <th width="25%">เรื่อง</th>
+                                <th width="15%">จาก</th>
+                                <th width="15%">ถึง</th>
+                                <th width="8%">ผู้ปฏิบัติ</th>
+                                <th width="8%">สถานะ</th>
+                                <th width="7%">การจัดการ</th>
+                            </tr>
+                        </thead>
+                        <tbody id="docTableBody">
+                        </tbody>
+                    </table>
+                </div>
+                <div id="initial-loading" class="text-center p-5">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">กำลังโหลด...</span>
+                    </div>
+                    <p class="mt-2 text-muted">กำลังโหลดข้อมูล...</p>
+                </div>
+                <div id="no-data" class="text-center p-5 d-none">
+                    <p class="text-muted mb-0">ยังไม่มีข้อมูลเอกสาร</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal สำหรับสร้างเอกสารใหม่ -->
+    <div class="modal fade" id="newDocModal" tabindex="-1" aria-labelledby="newDocModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="newDocModalLabel">กรอกข้อมูลเพื่อออกเลขหนังสือ</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="newDocForm">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="docDate" class="form-label">ลงวันที่ <span class="required">*</span></label>
+                                <input type="date" class="form-control" id="docDate" required>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="docOperator" class="form-label">ผู้ปฏิบัติ <span class="required">*</span></label>
+                                <input type="text" class="form-control" id="docOperator" placeholder="ชื่อผู้ปฏิบัติงาน" required>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="docFrom" class="form-label">จาก <span class="required">*</span></label>
+                                <input type="text" class="form-control" id="docFrom" placeholder="หน่วยงานต้นทาง" required>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="docTo" class="form-label">ถึง <span class="required">*</span></label>
+                                <input type="text" class="form-control" id="docTo" placeholder="หน่วยงานปลายทาง" required>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="docSubject" class="form-label">เรื่อง <span class="required">*</span></label>
+                            <textarea class="form-control" id="docSubject" rows="3" placeholder="รายละเอียดเรื่อง..." required></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label for="docFiles" class="form-label">แนบไฟล์ (ไม่บังคับ)</label>
+                            <input type="file" class="form-control" id="docFiles" multiple>
+                            <div class="form-text">รองรับไฟล์หลายประเภท เช่น PDF, DOC, JPG, PNG</div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">ยกเลิก</button>
+                    <button type="button" class="btn btn-primary" id="submitBtn">
+                        <span id="submitBtnText">บันทึกและออกเลข</span>
+                        <span id="submitBtnSpinner" class="spinner-border spinner-border-sm ms-2 d-none" role="status" aria-hidden="true"></span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Loading Overlay -->
+    <div class="loading-overlay" id="loading-overlay">
+         <div class="spinner-border text-primary" style="width: 3rem; height: 3rem;" role="status">
+             <span class="visually-hidden">กำลังประมวลผล...</span>
+         </div>
+    </div>
+
+    <script>
+        const webAppUrl = "<?= webAppUrl ?>";
+        const tableBody = document.getElementById('docTableBody');
+        const initialLoading = document.getElementById('initial-loading');
+        const noDataDiv = document.getElementById('no-data');
+        const loadingOverlay = document.getElementById('loading-overlay');
+        const newDocForm = document.getElementById('newDocForm');
+        const submitBtn = document.getElementById('submitBtn');
+        const submitBtnText = document.getElementById('submitBtnText');
+        const submitBtnSpinner = document.getElementById('submitBtnSpinner');
+        const newDocModal = new bootstrap.Modal(document.getElementById('newDocModal'));
+
+        // ตั้งค่าวันที่เริ่มต้นเป็นวันนี้
+        document.getElementById('docDate').valueAsDate = new Date();
+
+        document.addEventListener('DOMContentLoaded', loadDocuments);
+        submitBtn.addEventListener('click', handleFormSubmit);
+
+        function handleFormSubmit() {
+            if (!newDocForm.checkValidity()) {
+                newDocForm.reportValidity();
+                return;
+            }
+
+            // แสดง loading state
+            submitBtn.disabled = true;
+            submitBtnText.textContent = 'กำลังประมวลผล...';
+            submitBtnSpinner.classList.remove('d-none');
+
+            // เตรียมข้อมูลฟอร์ม
+            const formData = {
+                date: document.getElementById('docDate').value,
+                from: document.getElementById('docFrom').value,
+                to: document.getElementById('docTo').value,
+                subject: document.getElementById('docSubject').value,
+                operator: document.getElementById('docOperator').value,
+                attachments: []
+            };
+
+            // จัดการไฟล์แนบ
+            const files = document.getElementById('docFiles').files;
+            if (files.length > 0) {
+                processFilesAndSubmit(formData, files);
+            } else {
+                submitForm(formData);
+            }
+        }
+
+        function processFilesAndSubmit(formData, files) {
+            let processedFiles = 0;
+            const totalFiles = files.length;
+
+            for (let i = 0; i < files.length; i++) {
+                const file = files[i];
+                const reader = new FileReader();
+                
+                reader.onload = function(e) {
+                    formData.attachments.push({
+                        name: file.name,
+                        type: file.type,
+                        data: e.target.result
+                    });
+                    
+                    processedFiles++;
+                    if (processedFiles === totalFiles) {
+                        submitForm(formData);
+                    }
+                };
+                
+                reader.readAsDataURL(file);
+            }
+        }
+
+        function submitForm(formData) {
+            google.script.run
+                .withSuccessHandler(onGenerateSuccess)
+                .withFailureHandler(onFailure)
+                .saveData(formData);
+        }
+
+        function onGenerateSuccess(result) {
+            resetSubmitButton();
+            
+            if (result.success) {
+                newDocModal.hide();
+                newDocForm.reset();
+                document.getElementById('docDate').valueAsDate = new Date(); // รีเซ็ตวันที่เป็นวันนี้
+                
+                // แสดงข้อความสำเร็จ
+                showAlert('success', `✅ สร้างเลขหนังสือสำเร็จ!\nเลขที่ของคุณคือ: ${result.number}`);
+                
+                loadDocuments(); // รีเฟรชตาราง
+            } else {
+                showAlert('error', 'เกิดข้อผิดพลาด: ' + result.message);
+            }
+        }
+
+        function onFailure(error) {
+            resetSubmitButton();
+            console.error('Error:', error);
+            showAlert('error', 'เกิดข้อผิดพลาดในการประมวลผล: ' + error.message);
+        }
+
+        function resetSubmitButton() {
+            submitBtn.disabled = false;
+            submitBtnText.textContent = 'บันทึกและออกเลข';
+            submitBtnSpinner.classList.add('d-none');
+        }
+
+        function loadDocuments() {
+            initialLoading.style.display = 'block';
+            noDataDiv.classList.add('d-none');
+            
+            google.script.run
+                .withSuccessHandler(populateTable)
+                .withFailureHandler(onLoadFailure)
+                .getDocuments();
+        }
+
+        function populateTable(documents) {
+            tableBody.innerHTML = ''; // Clear existing rows
+            initialLoading.style.display = 'none';
+            
+            if (!documents || documents.length === 0) {
+                noDataDiv.classList.remove('d-none');
+                return;
+            }
+
+            documents.forEach(doc => {
+                const row = tableBody.insertRow();
+                row.innerHTML = `
+                    <td><strong class="text-primary">${doc.docNumber}</strong></td>
+                    <td><small class="text-muted">${doc.createTime}</small></td>
+                    <td>${doc.docDate}</td>
+                    <td>
+                        <div class="text-truncate" style="max-width: 200px;" title="${doc.subject}">
+                            ${doc.subject}
+                        </div>
+                    </td>
+                    <td><small>${doc.from}</small></td>
+                    <td><small>${doc.to}</small></td>
+                    <td><small>${doc.operator}</small></td>
+                    <td>
+                        <span class="badge ${doc.status === 'อัปโหลดแล้ว' ? 'bg-success' : 'bg-warning text-dark'} status-badge">
+                            ${doc.status}
+                        </span>
+                    </td>
+                    <td>${generateActionButtons(doc)}</td>
+                `;
+            });
+        }
+        
+        function generateActionButtons(doc) {
+            if (doc.status === 'อัปโหลดแล้ว' && doc.fileUrl) {
+                return `<a href="${doc.fileUrl}" target="_blank" class="btn btn-sm btn-outline-success" title="ดูไฟล์">
+                    <i class="bi bi-eye"></i> ดู
+                </a>`;
+            } else {
+                return `<a href="${webAppUrl}?page=upload&doc=${doc.docNumber}" class="btn btn-sm btn-primary" title="อัปโหลดไฟล์">
+                    <i class="bi bi-upload"></i> อัปโหลด
+                </a>`;
+            }
+        }
+
+        function onLoadFailure(error) {
+            initialLoading.style.display = 'none';
+            console.error('Error loading documents:', error);
+            showAlert('error', 'เกิดข้อผิดพลาดในการโหลดข้อมูล: ' + error.message);
+        }
+
+        function showAlert(type, message) {
+            // สร้าง alert แบบ Bootstrap
+            const alertType = type === 'success' ? 'alert-success' : 'alert-danger';
+            const alertHtml = `
+                <div class="alert ${alertType} alert-dismissible fade show position-fixed" 
+                     style="top: 20px; right: 20px; z-index: 9999; min-width: 300px;" role="alert">
+                    ${message}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            `;
+            
+            // เพิ่ม alert เข้าไปใน body
+            document.body.insertAdjacentHTML('beforeend', alertHtml);
+            
+            // ลบ alert หลังจาก 5 วินาที
+            setTimeout(() => {
+                const alerts = document.querySelectorAll('.alert');
+                alerts.forEach(alert => {
+                    if (alert.classList.contains('show')) {
+                        alert.remove();
+                    }
+                });
+            }, 5000);
+        }
+    </script>
+</body>
+</html>
